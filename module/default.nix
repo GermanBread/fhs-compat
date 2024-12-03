@@ -173,26 +173,25 @@ in
           
           set -eu
 
-          CONTAINERDIR=$(mktemp -d)
-          mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 $CONTAINERDIR
-
-          handle_exit() {
-              umount -l $CONTAINERDIR 2>/dev/null || true
-              rm -rf $CONTAINERDIR
-          }
-
-          trap 'handle_exit' EXIT
-
           if ${if !cfg.persistent then "true" else "false"}; then
-            rm -rf ${cfg.mountPoint}/*
+            rm -rf ${cfg.stateDir} ${cfg.mountPoint}/*
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
-
-          mkdir -pm 700 ${cfg.stateDir}
 
           if (! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}) \
             || [ ! -e ${cfg.stateDir}/timestamp ] \
             || [ $(( $(date +%s) - $(cat ${cfg.stateDir}/timestamp) )) -ge ${builtins.toString cfg.maxTimeDelta} ]; then
+
+            CONTAINERDIR=$(mktemp -d)
+            mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 $CONTAINERDIR
+
+            handle_exit() {
+                podman --root=$CONTAINERDIR umount bootstrap || true
+                umount -l $CONTAINERDIR 2>/dev/null || true
+                rm -rf $CONTAINERDIR
+            }
+
+            trap 'handle_exit' EXIT
             
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
             
@@ -201,22 +200,20 @@ in
             
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
 
-            echo "Preparing to replace old environment"
-            rm -rf ${cfg.mountPoint}/* ${cfg.stateDir}/*
-            
-            echo "Saving service state"
-            cp ${serialisedconf} ${cfg.stateDir}/serviceconf
-            date +%s >${cfg.stateDir}/timestamp
-            
-            echo "Copying distro files to ${cfg.mountPoint}"
-            rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
-
             echo "Purging unwanted directories"
-            rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
-            
+            rm -rf $IMAGE_MOUNT/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
+
+            echo "Cloning tree"
+            rsync -a --delete $IMAGE_MOUNT/ ${cfg.mountPoint}
+
             podman --root=$CONTAINERDIR umount bootstrap
             umount -l $CONTAINERDIR
             rm -rf $CONTAINERDIR
+
+            echo "Saving service state"
+            mkdir -pm 700 ${cfg.stateDir}
+            cp ${serialisedconf} ${cfg.stateDir}/serviceconf
+            date +%s >${cfg.stateDir}/timestamp
           else
             echo "Nothing changed, we can recycle this env."
           fi
