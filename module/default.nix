@@ -112,6 +112,7 @@ in
         path = with pkgs; [
           util-linux
           inetutils
+          mktemp
           podman
           rsync
         ];
@@ -122,18 +123,21 @@ in
           
           set -eu
 
+          CONTAINERDIR=$(mktemp -d)
+
           handle_exit() {
-              podman rm bootstrap -i
+              podman --root=$CONTAINERDIR system reset -f
+              rm -rf $CONTAINERDIR
           }
 
           trap 'handle_exit' EXIT
 
-          podman pull ${distro-image-mappings.${cfg.distro}}
+          podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
           
-          podman rm bootstrap -i
-          podman run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
+          podman --root=$CONTAINERDIR rm bootstrap -i
+          podman --root=$CONTAINERDIR run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
           
-          IMAGE_MOUNT=$(podman mount bootstrap)
+          IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
           
           mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           
@@ -143,8 +147,9 @@ in
           echo "Purging unwanted directories"
           rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
           
-          podman umount bootstrap
-          podman rm bootstrap -i
+          podman --root=$CONTAINERDIR umount bootstrap
+          podman --root=$CONTAINERDIR system reset -f
+          rm -rf $CONTAINERDIR
 
           if ${if cfg.mountBinDirs then "true" else "false"}; then
               echo "Setting up bind-mounts"
