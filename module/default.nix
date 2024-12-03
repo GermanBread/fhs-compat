@@ -8,14 +8,26 @@ let
   distro-image-mappings = {
     "arch" = "docker.io/archlinux:latest";
     "debian" = "docker.io/debian:latest";
-    "alpine" = "docker.io/alpine:latest";
+    "void" = "docker.io/voidlinux/voidlinux:latest";
   };
 
   distro-init-commands-mappings = {
     "arch" = "/bin/pacman -Syu --noconfirm";
     "debian" = "/bin/apt update && /bin/apt install -y";
-    "alpine" = "/bin/apk add -u";
+    "void" = "/bin/xbps-install -S && /bin/xbps-install -yu xbps && /bin/xbps-install -Syu";
   };
+
+  init-script = pkgs.writeShellScript "container-init" ''
+    set -eu
+
+    echo "Initialising container"
+    ${if cfg.preInitCommand != null then cfg.preInitCommand else "true"}
+    ${distro-init-commands-mappings.${cfg.distro}} ${concatStringsSep " " cfg.packages}
+    if ${if cfg.postInitCommand != null then "true" else "false"}; then
+      echo "Running extra commands"
+      ${if cfg.postInitCommand != null then cfg.postInitCommand else "true"}
+    fi
+  '';
 in
 
 {
@@ -51,13 +63,40 @@ in
         Which packages to install. Package names vary from distro to distro.
       '';
     };
+    preInitCommand = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = ''
+        Which command to run on a fresh container.
+        
+        WARNING:
+        Multiline strings have to be escaped properly, like so:
+        foo && \
+          bar
+
+        Executable paths have to be absolute paths!
+      '';
+    };
+    postInitCommand = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "/bin/pacman -R neofetch sdl2";
+      description = ''
+        Which command to run after packages have been installed.
+        
+        WARNING:
+        Multiline strings have to be escaped properly, like so:
+        foo && \
+          bar
+
+        Executable paths have to be absolute paths!
+      '';
+    };
   };
 
   config = {
     systemd = {
       tmpfiles.rules = [
-        "d  ${cfg.mountPoint} 755 root root - -"
-
         "L+ /usr              755 root root - ${cfg.mountPoint}/usr"
         "L+ /lib              755 root root - usr/lib              "
         "L+ /lib32            755 root root - usr/lib32            "
@@ -94,11 +133,12 @@ in
           rsync
         ];
         script = ''
+          set -eu
           trap 'podman rm bootstrap -i' EXIT
 
           podman pull ${distro-image-mappings.${cfg.distro}}
           
-          podman run --name bootstrap ${distro-image-mappings.${cfg.distro}} ${distro-init-commands-mappings.${cfg.distro}} ${concatStringsSep " " cfg.packages}
+          podman run --name bootstrap -v /nix:/nix ${distro-image-mappings.${cfg.distro}} ${init-script}
           
           IMAGE_MOUNT=$(podman mount bootstrap)
           rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
