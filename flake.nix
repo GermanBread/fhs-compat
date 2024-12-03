@@ -9,7 +9,7 @@
     pkgs = nixpkgs.legacyPackages."x86_64-linux";
   in {
     nixosModules = rec {
-      fhs-compat = throw "This flake output has been renamed to \"nixos-global-fhs\"";
+      fhs-compat = throw "This flake output has been renamed to \"nixos-fhs\".\nPlease use the \"default\" output.";
 
       nixos-fhs = import ./module;
       default = nixos-fhs;

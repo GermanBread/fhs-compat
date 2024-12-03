@@ -3,7 +3,10 @@
 Possible thanks to OCI containers!
 
 > **Warning**
-> This module was not tested on real hardware. It may brick generations built with it.
+> This module was not tested on real hardware.
+> It may brick generations built with it.
+
+I recommend you use this in a setup where `/` gets wiped every reboot.
 
 ## Installation using flakes
 
@@ -81,7 +84,7 @@ description:
   Whether or not to put a bind mount over /bin and /usr.
   Both will redirect to their counterparts in $mountPoint.
 
-  Useful for that extra bit of compatibility.
+  This option does not affect /sbin.
 ```
 
 ### services.fhs-compat.**packages**

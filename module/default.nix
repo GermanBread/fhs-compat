@@ -12,7 +12,7 @@ let
   };
 
   distro-init-commands-mappings = {
-    "arch" = "/bin/pacman -Syu --noconfirm";
+    "arch" = "/bin/pacman -Syu --noconfirm --needed ";
     "debian" = "/bin/apt update && /bin/apt install -y";
     "void" = "/bin/xbps-install -S && /bin/xbps-install -yu xbps && /bin/xbps-install -Syu";
   };
@@ -60,7 +60,7 @@ in
         Whether or not to put a bind mount over /bin and /usr.
         Both will redirect to their counterparts in $mountPoint.
 
-        Useful for that extra bit of compatibility.
+        This option does not affect /sbin.
       '';
     };
     packages = mkOption {
@@ -105,12 +105,13 @@ in
   config = {
     systemd = {
       tmpfiles.rules = [
-        "d  ${cfg.mountPoint} 755 root root - -                    "
+        "d  ${cfg.mountPoint} 755 root root - -                      "
 
-        "L+ /lib              755 root root - usr/lib              "
-        "L+ /lib32            755 root root - usr/lib32            "
-        "L+ /lib64            755 root root - usr/lib64            "
-        "L+ /sbin             755 root root - usr/sbin             "
+        "L+ /lib              755 root root - ${cfg.mountPoint}/lib  "
+        "L+ /lib32            755 root root - ${cfg.mountPoint}/lib32"
+        "L+ /lib64            755 root root - ${cfg.mountPoint}/lib64"
+        
+        "L+ /sbin             755 root root - ${cfg.mountPoint}/sbin "
       ];
 
       services."manage-global-fhs-env" = {
@@ -129,7 +130,7 @@ in
           set -eu
 
           handle_exit() {
-            podman rm bootstrap -i
+              podman rm bootstrap -i
           }
 
           trap 'handle_exit' EXIT
@@ -137,7 +138,7 @@ in
           podman pull ${distro-image-mappings.${cfg.distro}}
           
           podman rm bootstrap -i
-          podman run --name bootstrap -v /nix:/nix:ro ${distro-image-mappings.${cfg.distro}} ${init-script}
+          podman run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
           
           IMAGE_MOUNT=$(podman mount bootstrap)
           
@@ -149,16 +150,21 @@ in
           podman umount bootstrap
           podman rm bootstrap -i
 
-          echo "Setting up bind-mounts"
-          mount --bind ${cfg.mountPoint}/usr     /usr
-          mount --bind ${cfg.mountPoint}/usr/bin /bin
+          if ${if cfg.mountBinDirs then "true" else "false"}; then
+              echo "Setting up bind-mounts"
+              mount --bind ${cfg.mountPoint}/usr /usr
+              mount --bind ${cfg.mountPoint}/bin /bin
+          fi
 
-          echo "Waiting for /usr to be unmounted"
-          while mountpoint -q /usr; do true; done
-          echo "/usr got unmounted. Good night."
+          echo "Waiting for ${cfg.mountPoint} to be unmounted"
+          while mountpoint -q ${cfg.mountPoint}; do true; done
+          echo "${cfg.mountPoint} got unmounted. Good night."
         '';
         preStop = ''
-          umount -l /usr /bin ${cfg.mountPoint}
+          if ${if cfg.mountBinDirs then "true" else "false"}; then
+              umount -O bind -l /usr /bin
+          fi
+          umount -t tmpfs -l ${cfg.mountPoint}
         '';
       };
     };

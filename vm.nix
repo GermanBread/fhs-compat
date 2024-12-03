@@ -6,9 +6,10 @@
   services.getty.autologinUser = "root";
 
   services.fhs-compat = {
-    mountPoint = "/fhs";
+    mountPoint = "/very/custom/dir";
     distro = "arch";
     tmpfsSize = "4G";
+    mountBinDirs = true;
     packages = [
       "neofetch"
       "mesa" "lib32-mesa" "vulkan-radeon" "lib32-vulkan-radeon" "vulkan-icd-loader" "lib32-vulkan-icd-loader"
