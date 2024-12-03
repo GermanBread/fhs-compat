@@ -52,6 +52,7 @@ let
     "/lib32"
     "/lib64"
     "/sbin"
+    "/opt"
   ];
   bindPaths = [
     "/usr"
