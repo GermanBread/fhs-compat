@@ -46,6 +46,17 @@ let
     ${distro-init-commands-mappings.${cfg.distro}} ${concatStringsSep " " cfg.packages}
     ${if cfg.postInitCommand != null then cfg.postInitCommand else "true"}
   '';
+
+  linkPaths = [
+    "/lib"
+    "/lib32"
+    "/lib64"
+    "/sbin"
+  ];
+  bindPaths = [
+    "/usr"
+    "/bin"
+  ];
 in
 
 {
@@ -160,24 +171,33 @@ in
           echo -n "Waiting for net."
           until ping -c1 github.com; do sleep 1; done
           echo "Ok."
-          
+
           set -eu
+
+          mkdir -pm 755 ${cfg.mountPoint}
+          mkdir -p ${cfg.mountPoint}/{usr,bin}
 
           if ${if !cfg.persistent then "true" else "false"}; then
             rm -rf ${cfg.stateDir} ${cfg.mountPoint}/*
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
 
+          echo "Setting up symlinks"
+          ${builtins.toString (builtins.map (path: ''
+          ln -sfT ${cfg.mountPoint}${path} ${path}
+          '') linkPaths)}
+
           ${if cfg.mountBinDirs then ''
           echo "Setting up bind-mounts"
-          mkdir -p ${cfg.mountPoint}/{usr,bin}
-          mountpoint -q /usr && umount -l -O bind /usr
-          mountpoint -q /bin && umount -l -O bind /bin
-          mount --bind ${cfg.mountPoint}/usr /usr
-          mount --bind ${cfg.mountPoint}/bin /bin
+          ${builtins.toString (builtins.map (path: ''
+          mkdir -p ${cfg.mountPoint}${path}
+          umount -l -O bind ${path} || true
+          mount --bind ${cfg.mountPoint}${path} ${path}
+          '') bindPaths)}
           '' else ''''}
 
-          if (! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}) \
+          if ${if cfg.persistent then "false" else "true"} \
+            || (! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}) \
             || [ ! -e ${cfg.stateDir}/timestamp ] \
             || [ $(( $(date +%s) - $(cat ${cfg.stateDir}/timestamp) )) -ge ${builtins.toString cfg.maxTimeDelta} ]; then
 
@@ -198,12 +218,12 @@ in
             rsync -a --delete $IMAGE_MOUNT/ ${cfg.mountPoint}
 
             ${if cfg.mountBinDirs then ''
-            echo "Remounting /usr and /bin"
-            mkdir -p ${cfg.mountPoint}/{usr,bin}
-            mountpoint -q /usr && umount -l -O bind /usr
-            mountpoint -q /bin && umount -l -O bind /bin
-            mount --bind ${cfg.mountPoint}/usr /usr
-            mount --bind ${cfg.mountPoint}/bin /bin
+            echo "Remounting bind-mounts"
+            ${builtins.toString (builtins.map (path: ''
+            mkdir -p ${cfg.mountPoint}${path}
+            umount -l -O bind ${path} || true
+            mount --bind ${cfg.mountPoint}${path} ${path}
+            '') bindPaths)}
             '' else ''''}
 
             podman --root=$CONTAINERDIR umount bootstrap
@@ -226,29 +246,22 @@ in
         '';
         preStop = ''
           ${if cfg.persistent then '''' else ''
-            umount -t tmpfs -l ${cfg.mountPoint} || true
+          umount -t tmpfs -l ${cfg.mountPoint} || true
           ''}
           
+          ${builtins.toString (builtins.map (path: ''
+          rm -f ${path}
+          '') linkPaths)}
+          
           ${if cfg.mountBinDirs then ''
-          mountpoint -q /usr && umount -l -O bind /usr
-          mountpoint -q /bin && umount -l -O bind /bin
+          ${builtins.toString (builtins.map (path: ''
+          umount -l -O bind ${path} || true
+          '') bindPaths)}
           '' else ''''}
         '';
         serviceConfig."RemainAfterExit" = "true";
       };
     };
-
-    system.activationScripts."fhsenv-symlinks".text = ''
-      mkdir -pm 755 ${cfg.mountPoint}
-      mkdir -p ${cfg.mountPoint}/{usr,bin}
-
-      rm -f /lib /lib32 /lib64 /sbin
-
-      ln -s ${cfg.mountPoint}/lib   /lib
-      ln -s ${cfg.mountPoint}/lib32 /lib32
-      ln -s ${cfg.mountPoint}/lib64 /lib64
-      ln -s ${cfg.mountPoint}/sbin  /sbin
-    '';
 
     assertions = [
       { assertion = config.virtualisation.podman.enable; message = "You need to enable podman."; }
