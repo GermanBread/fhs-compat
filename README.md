@@ -3,8 +3,9 @@
 Possible thanks to OCI containers!
 
 > **Warning**
-> This module was not tested on real hardware.
-> It may brick generations built with it.
+> I tested this module on my dev host.
+> It may not work on yours.
+> If it doesn't, open an issue!
 
 I recommend you use this in a setup where `/` gets wiped every reboot.
 
