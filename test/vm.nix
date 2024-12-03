@@ -1,8 +1,4 @@
 { pkgs, ... }: {
-  imports = [
-    ./.
-  ];
-
   services.getty.autologinUser = "root";
 
   systemd.services.NetworkManager-wait-online.enable = false;

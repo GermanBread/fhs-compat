@@ -147,6 +147,10 @@ in
               mount --bind ${cfg.mountPoint}/bin /bin
           fi
 
+          if [ ! -e ${cfg.mountPoint}/lib32 ]; then
+            ln -s lib ${cfg.mountPoint}/lib32
+          fi
+
           echo "Waiting for ${cfg.mountPoint} to be unmounted"
           while mountpoint -q ${cfg.mountPoint}; do true; done
           echo "${cfg.mountPoint} got unmounted. Good night."
