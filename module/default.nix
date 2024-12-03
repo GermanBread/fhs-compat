@@ -93,11 +93,8 @@ in
           podman
           rsync
         ];
-        environment = {
-          HOME = "${cfg.mountPoint}/.service-data";
-        };
         script = ''
-          mkdir -p $HOME
+          trap 'podman rm bootstrap -i' EXIT
 
           podman pull ${distro-image-mappings.${cfg.distro}}
           
@@ -106,8 +103,6 @@ in
           IMAGE_MOUNT=$(podman mount bootstrap)
           rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
           podman umount bootstrap
-
-          podman system reset -f
         '';
         unitConfig = {
           ConditionPathIsMountPoint = cfg.mountPoint;
