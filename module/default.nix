@@ -138,7 +138,7 @@ in
           
           podman umount bootstrap
 
-          mount --bind ${cfg.mountPoint} /usr
+          mount --bind ${cfg.mountPoint}/usr     /usr
           mount --bind ${cfg.mountPoint}/usr/bin /bin
 
           echo "Waiting for /usr to be unmounted"

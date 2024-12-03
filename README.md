@@ -13,7 +13,7 @@ Possible thanks to OCI containers!
   inputs = {
     # <snip>
     fhs-compat = {
-      url = "github:GermanBread/fhs-compat";
+      url = "github:GermanBread/fhs-compat/stable";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # <snip>
