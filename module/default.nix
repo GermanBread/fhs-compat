@@ -138,7 +138,6 @@ in
     systemd = {
       tmpfiles.rules = [
         "d  ${cfg.mountPoint} 755 root root - -"
-        "d  ${cfg.stateDir}   755 root root - -"
 
         "L+ /lib   755 root root - ${cfg.mountPoint}/lib  "
         "L+ /lib32 755 root root - ${cfg.mountPoint}/lib32"
@@ -174,7 +173,7 @@ in
           mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 $CONTAINERDIR
 
           handle_exit() {
-              umount -l $CONTAINERDIR || true
+              umount -l $CONTAINERDIR 2>/dev/null || true
               rm -rf $CONTAINERDIR
           }
 
@@ -184,6 +183,8 @@ in
             rm -rf ${cfg.mountPoint}/*
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
+
+          mkdir -pm 700 ${cfg.stateDir}
 
           if (! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}) \
             || [ ! -e ${cfg.stateDir}/timestamp ] \
@@ -198,12 +199,9 @@ in
             
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
             
-            # We do not care if the env is impermanent
-            if [ -e ${cfg.stateDir} ]; then
-              echo "Saving service state"
-              ln -sf ${serialisedconf} ${cfg.stateDir}/serviceconf
-              date +%s >${cfg.stateDir}/timestamp
-            fi
+            echo "Saving service state"
+            cp ${serialisedconf} ${cfg.stateDir}/serviceconf
+            date +%s >${cfg.stateDir}/timestamp
             
             echo "Copying distro files to ${cfg.mountPoint}"
             rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
