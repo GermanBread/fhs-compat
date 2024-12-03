@@ -28,5 +28,7 @@
     diskSize = 10 * 1024;
   };
 
+  networking.networkmanager.enable = true;
+
   system.stateVersion = "22.05";
 }

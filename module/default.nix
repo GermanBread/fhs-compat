@@ -99,65 +99,58 @@ in
       tmpfiles.rules = [
         "d  ${cfg.mountPoint} 755 root root - -                    "
 
-        "L+ /usr              755 root root - ${cfg.mountPoint}/usr"
         "L+ /lib              755 root root - usr/lib              "
         "L+ /lib32            755 root root - usr/lib32            "
         "L+ /lib64            755 root root - usr/lib64            "
-        "L+ /bin              755 root root - usr/bin              "
         "L+ /sbin             755 root root - usr/sbin             "
       ];
 
-      mounts = [
-        {
-          what = "none";
-          where = cfg.mountPoint;
-          type = "tmpfs";
-          requires = [
-            "systemd-tmpfiles-setup.service"
-          ];
-          wantedBy = [
-            "basic.target"
-          ];
-          options = "size=${cfg.tmpfsSize},mode=755";
-          description = "tmpfs mount for FHS environment";
-        }
-      ];
-
       services."create-fhs-environment" = {
-        wantedBy = [
-          "multi-user.target"
-        ];
         after = [
           "network-online.target"
         ];
+        wantedBy = [
+          "multi-user.target"
+        ];
         path = with pkgs; [
+          util-linux
           podman
           rsync
         ];
         script = ''
           set -eu
-          trap 'podman rm bootstrap -i' EXIT
+
+          handle_exit() {
+            podman rm bootstrap -i
+          }
+
+          trap 'handle_exit' EXIT
 
           podman pull ${distro-image-mappings.${cfg.distro}}
           
-          podman run --name bootstrap -v /nix:/nix ${distro-image-mappings.${cfg.distro}} ${init-script}
+          podman rm bootstrap -i
+          podman run --name bootstrap -v /nix:/nix:ro ${distro-image-mappings.${cfg.distro}} ${init-script}
           
           IMAGE_MOUNT=$(podman mount bootstrap)
+          
+          mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
+          
           podman umount bootstrap
+
+          mount --bind ${cfg.mountPoint} /usr
+          mount --bind ${cfg.mountPoint}/usr/bin /bin
+
+          echo "Waiting for /usr to be unmounted"
+          while mountpoint -q /usr; do true; done
+          echo "/usr got unmounted. Good night."
         '';
-        unitConfig = {
-          ConditionPathIsMountPoint = cfg.mountPoint;
-        };
+        preStop = ''
+          umount -l /usr /bin ${cfg.mountPoint}
+        '';
       };
     };
 
     virtualisation.podman.enable = true;
-
-    # stolen from https://github.com/balsoft/nixos-fhs-compat/blob/master/modules/fhs.nix
-    system.activationScripts = {
-      binsh = (mkForce "");
-      usrbinenv = (mkForce "");
-    };
   };
 }
