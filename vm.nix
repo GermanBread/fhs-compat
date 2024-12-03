@@ -5,6 +5,8 @@
 
   services.getty.autologinUser = "root";
 
+  systemd.services.NetworkManager-wait-online.enable = false;
+
   services.fhs-compat = {
     mountPoint = "/very/custom/dir";
     distro = "arch";
