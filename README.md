@@ -2,7 +2,9 @@
 
 Possible thanks to OCI containers!
 
-**Warning:** This module is not ready for usage. It bricks NixOS setups.
+> **Warning**
+>
+> This module is not ready for usage. It bricks NixOS setups.
 
 ## Installation using flakes
 
@@ -16,7 +18,7 @@ Possible thanks to OCI containers!
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # <snip>
-  }
+  };
 
   outputs = { fhs-compat, ... }: {
     nixosConfigurations.<host> = nixpkgs.lib.nixosSystem {
@@ -26,10 +28,10 @@ Possible thanks to OCI containers!
         fhs-compat.nixosModules.fhs-compat
         # <snip>
         ./configuration.nix
-      ]
+      ];
       # <snip>
-    }
-  }
+    };
+  };
 }
 ```
 
