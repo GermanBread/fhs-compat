@@ -45,7 +45,7 @@ default:
   "arch"
 
 example:
-  one of "debian", "arch", "void"
+  one of [ "debian", "ubuntu", "alpine", "arch", "manjaro", "gentoo", "void" ]
 
 description:
   Which distro to use for bootstrapping the FHS environment.
@@ -71,6 +71,16 @@ default:
 
 description:
   Where the FHS environment will be installed to.
+```
+
+### services.fhs-compat.**stateDir**
+
+```
+default:
+  $mountPoint/.state
+
+description:
+  A directory where the service itself stores data
 ```
 
 ### services.fhs-compat.**mountBinDirs**

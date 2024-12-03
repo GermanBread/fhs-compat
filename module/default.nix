@@ -5,20 +5,35 @@ with lib;
 let
   cfg = config.services.fhs-compat;
 
-  pkglist = pkgs.writeText "pkgs" (builtins.toJSON cfg.packages);
-  preCmd = pkgs.writeText "pkgs" cfg.preInitCommand;
-  postCmd = pkgs.writeText "pkgs" cfg.postInitCommand;
+  # Serialising the entire conf is smarter than checking against specific changes
+  serialisedconf = pkgs.writeText "conf" (builtins.toJSON cfg);
 
   distro-image-mappings = {
-    "arch" = "docker.io/archlinux:latest";
-    "debian" = "docker.io/debian:latest";
-    "void" = "docker.io/voidlinux/voidlinux:latest";
+    "debian"  = "docker.io/debian:latest";
+    "ubuntu"  = "docker.io/ubuntu:latest";
+    
+    "alpine"  = "docker.io/alpine:latest";
+    
+    "arch"    = "docker.io/archlinux:latest";
+    "manjaro" = "docker.io/manjarolinux/base:latest";
+    
+    "gentoo"  = "docker.io/gentoo/stage3:latest";
+    
+    "void"    = "docker.io/voidlinux/voidlinux:latest";
   };
 
   distro-init-commands-mappings = {
-    "arch" = "pacman -Syu --noconfirm --needed ";
-    "debian" = "apt update && apt install -y ";
-    "void" = "xbps-install -S && xbps-install -yu xbps && xbps-install -Syu ";
+    "debian"  = "apt-get update && apt-get install -y ";
+    "ubuntu"  = "apt-get update && apt-get install -y ";
+    
+    "alpine"  = "apk update && apk add ";
+    
+    "arch"    = "pacman -Syu --noconfirm --needed ";
+    "manjaro" = "pacman -Syu --noconfirm --needed ";
+    
+    "gentoo"  = "emerge --sync && emerge ";
+    
+    "void"    = "xbps-install -S && xbps-install -yu xbps && xbps-install -Syu ";
   };
 
   init-script = pkgs.writeShellScript "container-init" ''
@@ -57,6 +72,13 @@ in
       default = "/.fhs";
       description = ''
         Where the FHS environment will be installed to.
+      '';
+    };
+    stateDir = mkOption {
+      type = types.str;
+      default = "${cfg.mountPoint}/.state";
+      description = ''
+        A directory where the service itself stores data
       '';
     };
     mountBinDirs = mkOption {
@@ -106,13 +128,14 @@ in
   config = {
     systemd = {
       tmpfiles.rules = [
-        "d  ${cfg.mountPoint} 755 root root - -                      "
+        "d  ${cfg.mountPoint} 755 root root - -"
+        "d  ${cfg.stateDir}   755 root root - -"
 
-        "L+ /lib              755 root root - ${cfg.mountPoint}/lib  "
-        "L+ /lib32            755 root root - ${cfg.mountPoint}/lib32"
-        "L+ /lib64            755 root root - ${cfg.mountPoint}/lib64"
+        "L+ /lib   755 root root - ${cfg.mountPoint}/lib  "
+        "L+ /lib32 755 root root - ${cfg.mountPoint}/lib32"
+        "L+ /lib64 755 root root - ${cfg.mountPoint}/lib64"
         
-        "L+ /sbin             755 root root - ${cfg.mountPoint}/sbin "
+        "L+ /sbin  755 root root - ${cfg.mountPoint}/sbin "
       ];
 
       services."manage-global-fhs-env" = {
@@ -131,7 +154,6 @@ in
           podman
           rsync
         ];
-        # TODO: Handle package changes
         script = ''
           echo -n "Waiting for net."
           until ping -c1 github.com; do sleep 1; done
@@ -154,9 +176,7 @@ in
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
 
-          if (! cmp -s ${cfg.mountPoint}/.pkglist ${pkglist}) \
-            || (! cmp -s ${cfg.mountPoint}/.precmd ${preCmd}) \
-            || (! cmp -s ${cfg.mountPoint}/.postcmd ${postCmd}); then
+          if ! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}; then
             rm -rf ${cfg.mountPoint}/*
 
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
@@ -167,9 +187,7 @@ in
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
             
             echo "Saving package list"
-            cp ${pkglist} ${cfg.mountPoint}/.pkglist
-            cp ${preCmd} ${cfg.mountPoint}/.precmd
-            cp ${postCmd} ${cfg.mountPoint}/.postcmd
+            ln -sf ${serialisedconf} ${cfg.stateDir}/serviceconf
             
             echo "Copying distro files to ${cfg.mountPoint}"
             rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
@@ -194,16 +212,11 @@ in
             ln -s lib ${cfg.mountPoint}/lib32
           fi
 
-          if ${if cfg.persistent then "true" else "false"}; then
-            echo "${cfg.mountPoint} is ready"
-            exit 0
-          fi
-
-          echo "Waiting for ${cfg.mountPoint} to be unmounted"
-          while mountpoint -q ${cfg.mountPoint}; do true; done
-          echo "${cfg.mountPoint} got unmounted. Good night."
+          echo "${cfg.mountPoint} is ready"
         '';
         preStop = ''
+          echo "Preparing cleanup"
+          
           if ${if cfg.mountBinDirs then "true" else "false"}; then
               umount -O bind -l /usr /bin
           fi
@@ -214,6 +227,7 @@ in
 
           umount -t tmpfs -l ${cfg.mountPoint} || true
         '';
+        serviceConfig."RemainAfterExit" = "true";
       };
     };
 

@@ -19,7 +19,7 @@
       shellHook = ''
         run-vm() {
           pushd test
-          nix flake update --inputs-from ../
+          nix flake update
           nixos-shell --flake .#
           popd
         }

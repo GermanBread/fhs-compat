@@ -21,7 +21,8 @@
       EOF
     '';
     postInitCommand = ''
-      pacman --version >/pacman-ver
+      command -v pacman && pacman --version >/pacman-ver || true
+      command -v apt && apt --version >/apt-ver || true
     '';
     persistent = true;
   };
