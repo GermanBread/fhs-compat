@@ -41,6 +41,12 @@
     mountNixProfile = false;
   };
 
+  fileSystems."/usr/share" = {
+    device = "/foo";
+    options = [ "bind" "ro" ];
+    fsType = "bind";
+  };
+
   environment.loginShellInit = ''
     trap 'poweroff' EXIT
   '';

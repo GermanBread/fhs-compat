@@ -2,7 +2,7 @@
   description = "Global FHS environment for your daily computing needs.";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     utils.url = "github:numtide/flake-utils";
   };
 
@@ -63,6 +63,7 @@
       shellHook = ''
         echo -e "\033[31mRun test-vm to test your code\033[0m"
       '';
+      NIX_PATH="nixpkgs=${nixpkgs}";
     };
   }) // {
     nixosModules = rec {

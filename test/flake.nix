@@ -1,8 +1,10 @@
 {
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-22.11;
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     nixos-shell.url = "github:Mic92/nixos-shell";
     fhs.url = "./..";
+
+    nixos-shell.inputs."nixpkgs".follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, fhs, nixos-shell }: let
