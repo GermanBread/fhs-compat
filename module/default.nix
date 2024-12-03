@@ -50,8 +50,12 @@ in
 
 {
   options.services.fhs-compat = {
+    enable = mkOption {
+      type = types.bool;
+      default = false;
+    };
     distro = mkOption {
-      type = types.str;
+      type = types.enum [ "debian" "ubuntu" "alpine" "arch" "manjaro" "gentoo" "void" ];
       default = "arch";
       example = "debian";
       description = ''
@@ -134,7 +138,7 @@ in
     };
   };
 
-  config = {
+  config = lib.mkIf cfg.enable {
     systemd = {
       tmpfiles.rules = [
         "d  ${cfg.mountPoint} 755 root root - -"
@@ -155,11 +159,11 @@ in
           "multi-user.target"
         ];
         path = with pkgs; [
+          config.virtualisation.podman.package
           util-linux
           diffutils
           inetutils
           mktemp
-          podman
           rsync
         ];
         script = ''
@@ -245,6 +249,8 @@ in
       };
     };
 
-    virtualisation.podman.enable = true;
+    assertions = [
+      { assertion = config.virtualisation.podman.enable; message = "You need to enable podman."; }
+    ];
   };
 }

@@ -4,6 +4,7 @@
   systemd.services.NetworkManager-wait-online.enable = false;
 
   services.fhs-compat = {
+    enable = true;
     mountPoint = "/very/custom/dir";
     distro = "arch";
     tmpfsSize = "4G";
@@ -31,6 +32,8 @@
     cores = 8;
     memorySize = 8096 * 2;
     diskSize = 10 * 1024;
+
+    podman.enable = true;
   };
 
   nixos-shell.mounts = {
