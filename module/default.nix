@@ -111,10 +111,15 @@ in
         ];
         path = with pkgs; [
           util-linux
+          inetutils
           podman
           rsync
         ];
         script = ''
+          echo -n "Waiting for net."
+          until ping -c1 github.com; do sleep 1; done
+          echo "Ok."
+          
           set -eu
 
           handle_exit() {

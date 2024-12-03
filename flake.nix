@@ -16,6 +16,14 @@
         nixos-shell
         jq
       ];
+      shellHook = ''
+        test-vm() {
+          pushd test
+          nix flake update --inputs-from ../
+          nixos-shell --flake .#
+          popd
+        }
+      '';
     };
   }) // {
     nixosModules = rec {
