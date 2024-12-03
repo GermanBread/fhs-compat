@@ -199,7 +199,7 @@ in
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
             
             # We do not care if the env is impermanent
-            if [ -e ${stateDir} ]; then
+            if [ -e ${cfg.stateDir} ]; then
               echo "Saving service state"
               ln -sf ${serialisedconf} ${cfg.stateDir}/serviceconf
               date +%s >${cfg.stateDir}/timestamp

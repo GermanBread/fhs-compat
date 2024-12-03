@@ -24,7 +24,7 @@
       command -v pacman && pacman --version >/pacman-ver || true
       command -v apt && apt --version >/apt-ver || true
     '';
-    persistent = true;
+    # persistent = true;
   };
 
   virtualisation = {
