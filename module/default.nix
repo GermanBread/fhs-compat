@@ -146,6 +146,9 @@ in
           
           echo "Copying distro files to ${cfg.mountPoint}"
           rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
+
+          echo "Purging unwanted directories"
+          rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev}
           
           podman umount bootstrap
           podman rm bootstrap -i
