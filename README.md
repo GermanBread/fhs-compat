@@ -3,7 +3,7 @@
 Possible thanks to OCI containers!
 
 > **Warning**
-> This module is not ready for usage. It bricks NixOS setups.
+> This module was not tested on real hardware. It may brick generations built with it.
 
 ## Installation using flakes
 
@@ -11,24 +11,22 @@ Possible thanks to OCI containers!
 ```nix
 {
   inputs = {
-    # <snip>
-    fhs-compat = {
-      url = "github:GermanBread/global-fhs-env/stable";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    # <snip>
+    # ...
+    fhs.url = "github:GermanBread/nixos-fhs/stable";
+    # ...
   };
 
-  outputs = { fhs-compat, ... }: {
+  outputs = { ..., fhs, ... }: {
     nixosConfigurations.<host> = nixpkgs.lib.nixosSystem {
-      # <snip>
+      # ...
       modules = [
-        # <snip>
-        fhs-compat.nixosModules.fhs-compat
-        # <snip>
+        # ...
+        fhs.nixosModules.default
+        # ...
         ./configuration.nix
+        # ...
       ];
-      # <snip>
+      # ...
     };
   };
 }

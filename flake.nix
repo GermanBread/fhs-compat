@@ -9,8 +9,10 @@
     pkgs = nixpkgs.legacyPackages."x86_64-linux";
   in {
     nixosModules = rec {
-      global-fhs-env = import ./module;
-      default = global-fhs-env;
+      fhs-compat = throw "This flake output has been renamed to \"nixos-global-fhs\"";
+
+      nixos-fhs = import ./module;
+      default = nixos-fhs;
     };
 
     devShells.x86_64-linux.default = pkgs.mkShell {

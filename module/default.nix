@@ -113,7 +113,7 @@ in
         "L+ /sbin             755 root root - usr/sbin             "
       ];
 
-      services."global-fhs-env" = {
+      services."manage-global-fhs-env" = {
         after = [
           "network-online.target"
         ];
