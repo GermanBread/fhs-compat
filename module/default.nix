@@ -19,10 +19,6 @@ let
 in
 
 {
-  imports = [
-
-  ];
-
   options.services.fhs-compat = {
     distro = mkOption {
       type = types.str;
