@@ -12,13 +12,15 @@ let
   };
 
   distro-init-commands-mappings = {
-    "arch" = "/bin/pacman -Syu --noconfirm --needed ";
-    "debian" = "/bin/apt update && /bin/apt install -y";
-    "void" = "/bin/xbps-install -S && /bin/xbps-install -yu xbps && /bin/xbps-install -Syu";
+    "arch" = "pacman -Syu --noconfirm --needed ";
+    "debian" = "apt update && apt install -y";
+    "void" = "xbps-install -S && xbps-install -yu xbps && xbps-install -Syu";
   };
 
   init-script = pkgs.writeShellScript "container-init" ''
     set -eu
+
+    export PATH=/bin:/usr/bin:/sbin:/usr/sbin
 
     echo "Initialising container"
     ${if cfg.preInitCommand != null then cfg.preInitCommand else "true"}
@@ -75,29 +77,15 @@ in
       type = types.nullOr types.str;
       default = null;
       description = ''
-        Which command to run on a fresh container.
-        
-        WARNING:
-        Multiline strings have to be escaped properly, like so:
-        foo && \
-          bar
-
-        Executable paths have to be absolute paths!
+        Which command(s) to run on a fresh container.
       '';
     };
     postInitCommand = mkOption {
       type = types.nullOr types.str;
       default = null;
-      example = "/bin/pacman -R neofetch sdl2";
+      example = "pacman -R neofetch sdl2";
       description = ''
-        Which command to run after packages have been installed.
-        
-        WARNING:
-        Multiline strings have to be escaped properly, like so:
-        foo && \
-          bar
-
-        Executable paths have to be absolute paths!
+        Which command(s) to run after packages have been installed.
       '';
     };
   };

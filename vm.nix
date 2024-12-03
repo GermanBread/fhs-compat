@@ -22,6 +22,9 @@
       Include = /etc/pacman.d/mirrorlist
       EOF
     '';
+    postInitCommand = ''
+      pacman --version >/pacman-ver
+    '';
   };
 
   virtualisation = {
