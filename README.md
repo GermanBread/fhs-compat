@@ -60,7 +60,7 @@ default:
 description:
   How big the tmpfs mounted on $mountPoint should be.
   This also affects the tmpfs size for temporary storage of the container.
-  Sizes must have a valid size suffix.
+  Sizes must have a valid suffix.
 ```
 
 ### services.fhs-compat.**mountPoint**
@@ -100,6 +100,19 @@ example:
 
 description:
   Which packages to install. Package names vary from distro to distro.
+```
+
+### services.fhs-compat.**persistent**
+
+```
+default:
+  false
+
+example:
+  true
+
+description:
+  Try to persist the FHS environment across reboots.
 ```
 
 ### services.fhs-compat.**preInitCommand**

@@ -23,12 +23,34 @@
     postInitCommand = ''
       pacman --version >/pacman-ver
     '';
+    persistent = true;
   };
 
   virtualisation = {
     cores = 8;
     memorySize = 8096 * 2;
     diskSize = 10 * 1024;
+  };
+
+  nixos-shell.mounts = {
+    mountHome = false;
+    mountNixProfile = false;
+  };
+
+  environment.loginShellInit = ''
+    trap 'poweroff' EXIT
+  '';
+
+  users.users."root".shell = pkgs.zsh;
+
+  programs.zsh = {
+    enable = true;
+    autosuggestions.enable = true;
+    syntaxHighlighting.enable = true;
+    ohMyZsh = {
+      enable = true;
+      theme = "flazz";
+    };
   };
 
   networking.networkmanager.enable = true;

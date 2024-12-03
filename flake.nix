@@ -17,12 +17,43 @@
         jq
       ];
       shellHook = ''
-        test-vm() {
+        run-vm() {
           pushd test
           nix flake update --inputs-from ../
           nixos-shell --flake .#
           popd
         }
+        
+        test-vm() {
+          run-vm
+          
+          countdown=4
+          echo -n '(press CTRL-C to cancel) Restarting vm in 5'
+          while [ $countdown -gt 0 ]; do
+            sleep 1
+            echo -n ...$countdown
+            countdown=$(($countdown - 1))
+          done
+          sleep 1
+          echo ...0
+          test-vm
+        }
+
+        init-hook() {
+          countdown=4
+          echo -n '(press CTRL-C to cancel) Starting vm in 5'
+          while [ $countdown -gt 0 ]; do
+            sleep 1
+            echo -n ...$countdown
+            countdown=$(($countdown - 1))
+          done
+          sleep 1
+          echo ...0
+          
+          test-vm
+        }
+
+        init-hook
       '';
     };
   }) // {

@@ -5,6 +5,10 @@ with lib;
 let
   cfg = config.services.fhs-compat;
 
+  pkglist = pkgs.writeText "pkgs" (builtins.toJSON cfg.packages);
+  preCmd = pkgs.writeText "pkgs" cfg.preInitCommand;
+  postCmd = pkgs.writeText "pkgs" cfg.postInitCommand;
+
   distro-image-mappings = {
     "arch" = "docker.io/archlinux:latest";
     "debian" = "docker.io/debian:latest";
@@ -13,8 +17,8 @@ let
 
   distro-init-commands-mappings = {
     "arch" = "pacman -Syu --noconfirm --needed ";
-    "debian" = "apt update && apt install -y";
-    "void" = "xbps-install -S && xbps-install -yu xbps && xbps-install -Syu";
+    "debian" = "apt update && apt install -y ";
+    "void" = "xbps-install -S && xbps-install -yu xbps && xbps-install -Syu ";
   };
 
   init-script = pkgs.writeShellScript "container-init" ''
@@ -44,6 +48,7 @@ in
       default = "5G";
       description = ''
         How big the tmpfs mounted on $mountPoint should be.
+        This also affects the tmpfs size for temporary storage of the container.
         Sizes must have a valid suffix.
       '';
     };
@@ -71,6 +76,14 @@ in
       example = [ "neofetch" "sdl2" ];
       description = ''
         Which packages to install. Package names vary from distro to distro.
+      '';
+    };
+    persistent = mkOption {
+      type = types.bool;
+      default = false;
+      example = true;
+      description = ''
+        Try to persist the FHS environment across reboots.
       '';
     };
     preInitCommand = mkOption {
@@ -111,11 +124,13 @@ in
         ];
         path = with pkgs; [
           util-linux
+          diffutils
           inetutils
           mktemp
           podman
           rsync
         ];
+        # TODO: Handle package changes
         script = ''
           echo -n "Waiting for net."
           until ping -c1 github.com; do sleep 1; done
@@ -133,24 +148,40 @@ in
 
           trap 'handle_exit' EXIT
 
-          podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
-          
-          podman --root=$CONTAINERDIR rm bootstrap -i
-          podman --root=$CONTAINERDIR run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
-          
-          IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
-          
-          mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
-          
-          echo "Copying distro files to ${cfg.mountPoint}"
-          rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
+          if ${if !cfg.persistent then "true" else "false"}; then
+            rm -rf ${cfg.mountPoint}/* ${cfg.mountPoint}/.*
+            mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
+          fi
 
-          echo "Purging unwanted directories"
-          rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
-          
-          podman --root=$CONTAINERDIR umount bootstrap
-          umount -l $CONTAINERDIR
-          rm -rf $CONTAINERDIR
+          if (! cmp -s ${cfg.mountPoint}/.pkglist ${pkglist}) \
+            || (! cmp -s ${cfg.mountPoint}/.precmd ${preCmd}) \
+            || (! cmp -s ${cfg.mountPoint}/.postcmd ${postCmd}); then
+            rm -rf ${cfg.mountPoint}/* ${cfg.mountPoint}/.*
+
+            podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
+            
+            podman --root=$CONTAINERDIR rm bootstrap -i
+            podman --root=$CONTAINERDIR run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
+            
+            IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
+            
+            echo "Saving package list"
+            cp ${pkglist} ${cfg.mountPoint}/.pkglist
+            cp ${preCmd} ${cfg.mountPoint}/.precmd
+            cp ${postCmd} ${cfg.mountPoint}/.postcmd
+            
+            echo "Copying distro files to ${cfg.mountPoint}"
+            rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
+
+            echo "Purging unwanted directories"
+            rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
+            
+            podman --root=$CONTAINERDIR umount bootstrap
+            umount -l $CONTAINERDIR
+            rm -rf $CONTAINERDIR
+          else
+            echo "Nothing changed, we can recycle this env."
+          fi
 
           if ${if cfg.mountBinDirs then "true" else "false"}; then
               echo "Setting up bind-mounts"
@@ -162,6 +193,11 @@ in
             ln -s lib ${cfg.mountPoint}/lib32
           fi
 
+          if ${if cfg.persistent then "true" else "false"}; then
+            echo "${cfg.mountPoint} is ready"
+            exit 0
+          fi
+
           echo "Waiting for ${cfg.mountPoint} to be unmounted"
           while mountpoint -q ${cfg.mountPoint}; do true; done
           echo "${cfg.mountPoint} got unmounted. Good night."
@@ -170,7 +206,12 @@ in
           if ${if cfg.mountBinDirs then "true" else "false"}; then
               umount -O bind -l /usr /bin
           fi
-          umount -t tmpfs -l ${cfg.mountPoint}
+          
+          if ${if cfg.persistent then "true" else "false"}; then
+            exit 0
+          fi
+
+          umount -t tmpfs -l ${cfg.mountPoint} || true
         '';
       };
     };
