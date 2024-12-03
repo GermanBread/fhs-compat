@@ -149,14 +149,14 @@ in
           trap 'handle_exit' EXIT
 
           if ${if !cfg.persistent then "true" else "false"}; then
-            rm -rf ${cfg.mountPoint}/* ${cfg.mountPoint}/.*
+            rm -rf ${cfg.mountPoint}/*
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
 
           if (! cmp -s ${cfg.mountPoint}/.pkglist ${pkglist}) \
             || (! cmp -s ${cfg.mountPoint}/.precmd ${preCmd}) \
             || (! cmp -s ${cfg.mountPoint}/.postcmd ${postCmd}); then
-            rm -rf ${cfg.mountPoint}/* ${cfg.mountPoint}/.*
+            rm -rf ${cfg.mountPoint}/*
 
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
             
