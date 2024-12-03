@@ -36,6 +36,15 @@ I recommend you use this in a setup where `/` gets wiped every reboot.
 }
 ```
 
+## IMPORTANT: You need to enable this module in your configuration.nix
+
+```nix
+services.fhs-compat = {
+  enable = true;
+  # other options here
+};
+```
+
 ## Module definition
 
 ### services.fhs-compat.**distro**
