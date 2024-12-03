@@ -116,6 +116,7 @@ in
       ];
 
       services."manage-global-fhs-env" = {
+        description = "Global FHS environment";
         after = [
           "network-online.target"
         ];
