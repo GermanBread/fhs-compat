@@ -198,9 +198,12 @@ in
             
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
             
-            echo "Saving service state"
-            ln -sf ${serialisedconf} ${cfg.stateDir}/serviceconf
-            date +%s >${cfg.stateDir}/timestamp
+            # We do not care if the env is impermanent
+            if [ -e ${stateDir} ]; then
+              echo "Saving service state"
+              ln -sf ${serialisedconf} ${cfg.stateDir}/serviceconf
+              date +%s >${cfg.stateDir}/timestamp
+            fi
             
             echo "Copying distro files to ${cfg.mountPoint}"
             rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
