@@ -2,6 +2,8 @@
 
 Possible thanks to OCI containers!
 
+**Warning:** This module is not ready for usage. It bricks NixOS setups.
+
 ## Installation using flakes
 
 `/etc/nixos/flake.nix`
