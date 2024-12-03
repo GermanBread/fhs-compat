@@ -45,7 +45,7 @@ default:
   "arch"
 
 example:
-  "debian"
+  one of "debian", "arch", "void"
 
 description:
   Which distro to use for bootstrapping the FHS environment.
@@ -114,8 +114,6 @@ description:
   Multiline strings have to be escaped properly, like so:
   foo && \
     bar
-
-  Executable paths have to be absolute paths!
 ```
 
 ### services.fhs-compat.**postInitCommand**
@@ -125,7 +123,7 @@ default:
   null
 
 example:
-  "/bin/pacman -R neofetch sdl2";
+  "pacman -R neofetch sdl2";
 
 description:
   Which command to run after packages have been installed.
@@ -134,5 +132,3 @@ description:
   Multiline strings have to be escaped properly, like so:
   foo && \
     bar
-
-  Executable paths have to be absolute paths!
