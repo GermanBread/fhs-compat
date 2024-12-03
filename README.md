@@ -55,11 +55,12 @@ description:
 
 ```
 default:
-  "2G"
+  "5G"
 
 description:
   How big the tmpfs mounted on $mountPoint should be.
-  Sizes must have a valid suffix.
+  This also affects the tmpfs size for temporary storage of the container.
+  Sizes must have a valid size suffix.
 ```
 
 ### services.fhs-compat.**mountPoint**

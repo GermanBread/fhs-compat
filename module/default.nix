@@ -41,7 +41,7 @@ in
     };
     tmpfsSize = mkOption {
       type = types.str;
-      default = "2G";
+      default = "5G";
       description = ''
         How big the tmpfs mounted on $mountPoint should be.
         Sizes must have a valid suffix.
@@ -124,9 +124,10 @@ in
           set -eu
 
           CONTAINERDIR=$(mktemp -d)
+          mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 $CONTAINERDIR
 
           handle_exit() {
-              podman --root=$CONTAINERDIR system reset -f
+              umount -l $CONTAINERDIR || true
               rm -rf $CONTAINERDIR
           }
 
@@ -148,7 +149,7 @@ in
           rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
           
           podman --root=$CONTAINERDIR umount bootstrap
-          podman --root=$CONTAINERDIR system reset -f
+          umount -l $CONTAINERDIR
           rm -rf $CONTAINERDIR
 
           if ${if cfg.mountBinDirs then "true" else "false"}; then
