@@ -140,16 +140,6 @@ in
 
   config = lib.mkIf cfg.enable {
     systemd = {
-      tmpfiles.rules = [
-        "d  ${cfg.mountPoint} 755 root root - -"
-
-        "L+ /lib   755 root root - ${cfg.mountPoint}/lib  "
-        "L+ /lib32 755 root root - ${cfg.mountPoint}/lib32"
-        "L+ /lib64 755 root root - ${cfg.mountPoint}/lib64"
-        
-        "L+ /sbin  755 root root - ${cfg.mountPoint}/sbin "
-      ];
-
       services."manage-global-fhs-env" = {
         description = "Global FHS environment";
         after = [
@@ -159,10 +149,10 @@ in
           "multi-user.target"
         ];
         path = with pkgs; [
-          config.virtualisation.podman.package
           util-linux
           diffutils
           inetutils
+          podman
           mktemp
           rsync
         ];
@@ -177,6 +167,15 @@ in
             rm -rf ${cfg.stateDir} ${cfg.mountPoint}/*
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
+
+          ${if cfg.mountBinDirs then ''
+          echo "Setting up bind-mounts"
+          mkdir -p ${cfg.mountPoint}/{usr,bin}
+          mountpoint -q /usr && umount -l -O bind /usr
+          mountpoint -q /bin && umount -l -O bind /bin
+          mount --bind ${cfg.mountPoint}/usr /usr
+          mount --bind ${cfg.mountPoint}/bin /bin
+          '' else ''''}
 
           if (! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}) \
             || [ ! -e ${cfg.stateDir}/timestamp ] \
@@ -198,6 +197,15 @@ in
             echo "Cloning tree"
             rsync -a --delete $IMAGE_MOUNT/ ${cfg.mountPoint}
 
+            ${if cfg.mountBinDirs then ''
+            echo "Remounting /usr and /bin"
+            mkdir -p ${cfg.mountPoint}/{usr,bin}
+            mountpoint -q /usr && umount -l -O bind /usr
+            mountpoint -q /bin && umount -l -O bind /bin
+            mount --bind ${cfg.mountPoint}/usr /usr
+            mount --bind ${cfg.mountPoint}/bin /bin
+            '' else ''''}
+
             podman --root=$CONTAINERDIR umount bootstrap
             umount -l $CONTAINERDIR
             rm -rf $CONTAINERDIR
@@ -210,12 +218,6 @@ in
             echo "Nothing changed, we can recycle this env."
           fi
 
-          if ${if cfg.mountBinDirs then "true" else "false"}; then
-              echo "Setting up bind-mounts"
-              mount --bind ${cfg.mountPoint}/usr /usr
-              mount --bind ${cfg.mountPoint}/bin /bin
-          fi
-
           if [ ! -e ${cfg.mountPoint}/lib32 ]; then
             ln -s lib ${cfg.mountPoint}/lib32
           fi
@@ -223,21 +225,30 @@ in
           echo "${cfg.mountPoint} is ready"
         '';
         preStop = ''
-          echo "Preparing cleanup"
+          ${if cfg.persistent then '''' else ''
+            umount -t tmpfs -l ${cfg.mountPoint} || true
+          ''}
           
-          if ${if cfg.mountBinDirs then "true" else "false"}; then
-              umount -O bind -l /usr /bin
-          fi
-          
-          if ${if cfg.persistent then "true" else "false"}; then
-            exit 0
-          fi
-
-          umount -t tmpfs -l ${cfg.mountPoint} || true
+          ${if cfg.mountBinDirs then ''
+          mountpoint -q /usr && umount -l -O bind /usr
+          mountpoint -q /bin && umount -l -O bind /bin
+          '' else ''''}
         '';
         serviceConfig."RemainAfterExit" = "true";
       };
     };
+
+    system.activationScripts."fhsenv-symlinks".text = ''
+      mkdir -pm 755 ${cfg.mountPoint}
+      mkdir -p ${cfg.mountPoint}/{usr,bin}
+
+      rm -f /lib /lib32 /lib64 /sbin
+
+      ln -s ${cfg.mountPoint}/lib   /lib
+      ln -s ${cfg.mountPoint}/lib32 /lib32
+      ln -s ${cfg.mountPoint}/lib64 /lib64
+      ln -s ${cfg.mountPoint}/sbin  /sbin
+    '';
 
     assertions = [
       { assertion = config.virtualisation.podman.enable; message = "You need to enable podman."; }
