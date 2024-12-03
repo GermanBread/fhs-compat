@@ -97,6 +97,8 @@ in
   config = {
     systemd = {
       tmpfiles.rules = [
+        "d  ${cfg.mountPoint} 755 root root - -                    "
+
         "L+ /usr              755 root root - ${cfg.mountPoint}/usr"
         "L+ /lib              755 root root - usr/lib              "
         "L+ /lib32            755 root root - usr/lib32            "
