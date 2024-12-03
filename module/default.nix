@@ -194,14 +194,15 @@ in
             || [ ! -e ${cfg.stateDir}/timestamp ] \
             || [ $(( $(date +%s) - $(cat ${cfg.stateDir}/timestamp) )) -ge ${builtins.toString cfg.maxTimeDelta} ]; then
             
-            rm -rf ${cfg.mountPoint}/*
-
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
             
             podman --root=$CONTAINERDIR rm bootstrap -i
             podman --root=$CONTAINERDIR run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
             
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
+
+            echo "Preparing to replace old environment"
+            rm -rf ${cfg.mountPoint}/* ${cfg.stateDir}/*
             
             echo "Saving service state"
             cp ${serialisedconf} ${cfg.stateDir}/serviceconf
