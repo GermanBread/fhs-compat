@@ -1,17 +1,7 @@
 # Global FHS environment for NixOS
 
-Possible thanks to OCI containers!
+### Possible thanks to OCI containers!
 
-Importing on systems without flakes:
-```nix
-{ config, pkgs, ... }:
-
-{
-  imports = [
-    (pkgs.fetchFromGitHub { repo = "fhs-compat"; owner = "GermanBread"; rev = "latest stable commit"; })
-  ];
-}
-```
 Module definition:
 ```nix
 services.fhs-compat = {

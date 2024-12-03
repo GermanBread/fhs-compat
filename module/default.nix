@@ -12,9 +12,9 @@ let
   };
 
   distro-init-commands-mappings = {
-    "arch" = "pacman -Syu --noconfirm";
-    "debian" = "apt update && apt install -y";
-    "alpine" = "apk add -u";
+    "arch" = "/bin/pacman -Syu --noconfirm";
+    "debian" = "/bin/apt update && /bin/apt install -y";
+    "alpine" = "/bin/apk add -u";
   };
 in
 
@@ -22,13 +22,14 @@ in
   options.services.fhs-compat = {
     distro = mkOption {
       type = types.str;
-      default = "debian";
-      example = "arch";
+      default = "arch";
+      example = "debian";
       description = ''
         Which distro to use for bootstrapping the FHS environment.
       '';
     };
     tmpfsSize = mkOption {
+      type = types.str;
       default = "2G";
       description = ''
         How big the tmpfs mounted on $mountPoint should be.
