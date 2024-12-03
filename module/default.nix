@@ -185,14 +185,6 @@ in
             CONTAINERDIR=$(mktemp -d)
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 $CONTAINERDIR
 
-            handle_exit() {
-                podman --root=$CONTAINERDIR umount bootstrap || true
-                umount -l $CONTAINERDIR 2>/dev/null || true
-                rm -rf $CONTAINERDIR
-            }
-
-            trap 'handle_exit' EXIT
-            
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
             
             podman --root=$CONTAINERDIR rm bootstrap -i
