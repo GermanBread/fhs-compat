@@ -23,10 +23,7 @@ let
     echo "Initialising container"
     ${if cfg.preInitCommand != null then cfg.preInitCommand else "true"}
     ${distro-init-commands-mappings.${cfg.distro}} ${concatStringsSep " " cfg.packages}
-    if ${if cfg.postInitCommand != null then "true" else "false"}; then
-      echo "Running extra commands"
-      ${if cfg.postInitCommand != null then cfg.postInitCommand else "true"}
-    fi
+    ${if cfg.postInitCommand != null then cfg.postInitCommand else "true"}
   '';
 in
 
@@ -53,6 +50,17 @@ in
       default = "/.fhs";
       description = ''
         Where the FHS environment will be installed to.
+      '';
+    };
+    mountBinDirs = mkOption {
+      type = types.bool;
+      default = false;
+      example = true;
+      description = ''
+        Whether or not to put a bind mount over /bin and /usr.
+        Both will redirect to their counterparts in $mountPoint.
+
+        Useful for that extra bit of compatibility.
       '';
     };
     packages = mkOption {
@@ -105,7 +113,7 @@ in
         "L+ /sbin             755 root root - usr/sbin             "
       ];
 
-      services."create-fhs-environment" = {
+      services."global-fhs-env" = {
         after = [
           "network-online.target"
         ];
@@ -134,10 +142,14 @@ in
           IMAGE_MOUNT=$(podman mount bootstrap)
           
           mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
+          
+          echo "Copying distro files to ${cfg.mountPoint}"
           rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
           
           podman umount bootstrap
+          podman rm bootstrap -i
 
+          echo "Setting up bind-mounts"
           mount --bind ${cfg.mountPoint}/usr     /usr
           mount --bind ${cfg.mountPoint}/usr/bin /bin
 

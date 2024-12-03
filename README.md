@@ -13,7 +13,7 @@ Possible thanks to OCI containers!
   inputs = {
     # <snip>
     fhs-compat = {
-      url = "github:GermanBread/fhs-compat/stable";
+      url = "github:GermanBread/global-fhs-env/stable";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # <snip>
@@ -68,6 +68,22 @@ default:
 
 description:
   Where the FHS environment will be installed to.
+```
+
+### services.fhs-compat.**mountBinDirs**
+
+```
+default:
+  false
+
+example:
+  true
+
+description:
+  Whether or not to put a bind mount over /bin and /usr.
+  Both will redirect to their counterparts in $mountPoint.
+
+  Useful for that extra bit of compatibility.
 ```
 
 ### services.fhs-compat.**packages**

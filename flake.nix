@@ -9,8 +9,8 @@
     pkgs = nixpkgs.legacyPackages."x86_64-linux";
   in {
     nixosModules = rec {
-      fhs-compat = import ./module;
-      default = fhs-compat;
+      global-fhs-env = import ./module;
+      default = global-fhs-env;
     };
 
     devShells.x86_64-linux.default = pkgs.mkShell {
