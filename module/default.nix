@@ -184,8 +184,15 @@ in
           fi
 
           echo "Setting up symlinks"
+          rm -rf ${cfg.stateDir}/not-linked
+          mkdir -pm 755 ${cfg.stateDir}/not-linked
           ${builtins.toString (builtins.map (path: ''
-          ln -sfT ${cfg.mountPoint}${path} ${path}
+          if ([ ! -e ${path} ] && ! mountpoint -q --nofollow ${path}) || ([ -L ${path} ] && [[ "$(readlink ${path})" = "${cfg.mountPoint}"* ]]); then
+            ln -svfT ${cfg.mountPoint}${path} ${path}
+          else
+            echo "Did not link ${path}"
+            touch ${cfg.stateDir}/not-linked${path}
+          fi
           '') linkPaths)}
 
           ${if cfg.mountBinDirs then ''
@@ -194,6 +201,9 @@ in
           mkdir -p ${cfg.mountPoint}${path}
           umount -l -O bind ${path} || true
           mount --bind ${cfg.mountPoint}${path} ${path}
+
+          # Mount FSTAB
+          mount -a
           '') bindPaths)}
           '' else ''''}
 
@@ -206,10 +216,10 @@ in
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 $CONTAINERDIR
 
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
-            
+
             podman --root=$CONTAINERDIR rm bootstrap -i
             podman --root=$CONTAINERDIR run --name bootstrap -v /nix:/nix:ro -t ${distro-image-mappings.${cfg.distro}} ${init-script}
-            
+
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
 
             echo "Purging unwanted directories"
@@ -222,7 +232,7 @@ in
             echo "Remounting bind-mounts"
             ${builtins.toString (builtins.map (path: ''
             mkdir -p ${cfg.mountPoint}${path}
-            umount -l -O bind ${path} || true
+            umount -R -l -O bind ${path} || true
             mount --bind ${cfg.mountPoint}${path} ${path}
             '') bindPaths)}
             '' else ''''}
@@ -249,9 +259,13 @@ in
           ${if cfg.persistent then '''' else ''
           umount -t tmpfs -l ${cfg.mountPoint} || true
           ''}
-          
+
           ${builtins.toString (builtins.map (path: ''
-          rm -f ${path}
+          if [ ! -e ${cfg.stateDir}/not-linked${path} ]; then
+            rm -vf ${path}
+          else
+            echo "Not unlinking ${path}"
+          fi
           '') linkPaths)}
           
           ${if cfg.mountBinDirs then ''
