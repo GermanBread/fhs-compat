@@ -148,7 +148,7 @@ in
           rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}
 
           echo "Purging unwanted directories"
-          rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev}
+          rm -rf ${cfg.mountPoint}/{,usr/}lib/{systemd,tmpfiles.d,sysctl.d,udev,sysusers.d,pam.d}
           
           podman umount bootstrap
           podman rm bootstrap -i
