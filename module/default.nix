@@ -123,6 +123,15 @@ in
         Which command(s) to run after packages have been installed.
       '';
     };
+    maxTimeDelta = mkOption {
+      type = types.ints.unsigned;
+      default = 60 * 60 * 24; # 1 day
+      example = "60 * 35"; # 35 mins
+      description = ''
+        The maximum age any given FHS environment (in seconds).
+        If the env is older than $maxTimeDelta (in seconds), it will be refreshed.
+      '';
+    };
   };
 
   config = {
@@ -176,7 +185,10 @@ in
             mount -t tmpfs none -o size=${cfg.tmpfsSize},mode=755 ${cfg.mountPoint}
           fi
 
-          if ! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}; then
+          if (! cmp -s ${cfg.stateDir}/serviceconf ${serialisedconf}) \
+            || [ ! -e ${cfg.stateDir}/timestamp ] \
+            || [ $(( $(date +%s) - $(cat ${cfg.stateDir}/timestamp) )) -ge ${builtins.toString cfg.maxTimeDelta} ]; then
+            
             rm -rf ${cfg.mountPoint}/*
 
             podman --root=$CONTAINERDIR pull ${distro-image-mappings.${cfg.distro}}
@@ -186,8 +198,9 @@ in
             
             IMAGE_MOUNT=$(podman --root=$CONTAINERDIR mount bootstrap)
             
-            echo "Saving package list"
+            echo "Saving service state"
             ln -sf ${serialisedconf} ${cfg.stateDir}/serviceconf
+            date +%s >${cfg.stateDir}/timestamp
             
             echo "Copying distro files to ${cfg.mountPoint}"
             rsync -a $IMAGE_MOUNT/* ${cfg.mountPoint}

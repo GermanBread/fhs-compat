@@ -156,3 +156,16 @@ description:
   Multiline strings have to be escaped properly, like so:
   foo && \
     bar
+```
+
+### services.fhs-compat.**maxTimeDelta**
+
+default:
+  60 * 60 * 24; # 1 day
+
+example:
+  60 * 35; # 35 mins
+
+description:
+  The maximum age any given FHS environment (in seconds).
+  If the env is older than $maxTimeDelta (in seconds), it will be refreshed.
